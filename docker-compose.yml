@@ -1,0 +1,22 @@
+services:
+  warp-proxy:
+    build: .
+    container_name: warp-proxy
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:3128:3128"
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "--proxy", "http://127.0.0.1:3128", "https://api.mangadex.org/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+# Không dùng volume - tránh TOS file bị override

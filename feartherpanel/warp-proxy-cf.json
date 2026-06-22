@@ -1,0 +1,70 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY FEATHERPANEL",
+    "meta": {
+        "update_url": null,
+        "version": "PTDL_v2"
+    },
+    "exported_at": "2026-06-22T10:44:42+00:00",
+    "name": "Cloudflare WARP Proxy",
+    "author": "mytai@nodevn1",
+    "description": "Cloudflare WARP HTTP proxy chạy trong Docker.\n\nTự động register WARP, kết nối tunnel WireGuard và expose HTTP proxy tại port 3128.\n\nTraffic được route qua Cloudflare WARP để bypass ISP block.",
+    "features": [],
+    "docker_images": {
+        "warp-proxy-cf": "warp-proxy-cf:latest"
+    },
+    "file_denylist": [],
+    "startup": "echo 'Container started'",
+    "config": {
+        "files": [],
+        "startup": {
+            "done": [
+                "starting gost",
+                "WARP connected OK"
+            ]
+        },
+        "logs": [],
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "container": "ubuntu:22.04",
+            "entrypoint": "bash",
+            "script": "#!/bin/bash\n# WARP Proxy Installation Script\n# Server Files: /mnt/server\n\napt-get update\napt-get install -y curl gnupg ca-certificates lsb-release expect tinyproxy\n\n# Install Cloudflare WARP\ncurl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \\\n    | gpg --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg\necho \"deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ jammy main\" \\\n    | tee /etc/apt/sources.list.d/cloudflare-client.list\napt-get update && apt-get install -y cloudflare-warp\n\n# Install gost\ncurl -fsSL https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz \\\n    | gunzip -c > /usr/local/bin/gost\nchmod +x /usr/local/bin/gost\n\n# Tao entrypoint\ncat > /mnt/server/entrypoint.sh << 'ENTRYEOF'\n#!/bin/bash\nset -e\n\necho \"[entrypoint] starting warp-svc...\"\n/usr/bin/warp-svc &\nsleep 5\n\nwarp() {\n    expect -c \"\n        spawn warp-cli \\$*\n        expect {\n            \\\"y/N\\\" { send \\\"y\\\\r\\\"; exp_continue }\n            eof\n        }\n    \" 2>/dev/null || true\n}\n\necho \"[entrypoint] registering WARP...\"\nwarp \"registration new\" || true\n\necho \"[entrypoint] setting tunnel mode...\"\nwarp \"tunnel protocol set WireGuard\" || true\nwarp \"mode warp\"\n\necho \"[entrypoint] connecting WARP...\"\nwarp \"connect\"\n\necho \"[entrypoint] waiting for WARP to connect...\"\nMAX_WAIT=60\nELAPSED=0\nwhile [ \\$ELAPSED -lt \\$MAX_WAIT ]; do\n    STATUS=\\$(warp \"status\" 2>&1 || true)\n    echo \"[entrypoint] status: \\$STATUS\"\n    if echo \"\\$STATUS\" | grep -q \"Connected\"; then\n        echo \"[entrypoint] WARP connected OK\"\n        break\n    fi\n    sleep 3\n    ELAPSED=\\$((ELAPSED + 3))\ndone\n\nif ! echo \"\\$STATUS\" | grep -q \"Connected\"; then\n    echo \"[entrypoint] ERROR: WARP failed to connect after \\${MAX_WAIT}s\"\n    exit 1\nfi\n\necho \"[entrypoint] starting tinyproxy on port ${PROXY_PORT}...\"\nexec /usr/bin/tinyproxy -d -c /mnt/server/tinyproxy.conf\nENTRYEOF\n\nchmod +x /mnt/server/entrypoint.sh\n\n# Tao tinyproxy config\ncat > /mnt/server/tinyproxy.conf << 'TINYEOF'\nPort {{PROXY_PORT}}\nListen 0.0.0.0\nTimeout 600\nDefaultErrorFile \"/usr/share/tinyproxy/default.html\"\nStatFile \"/usr/share/tinyproxy/stats.html\"\nLogLevel Critical\nMaxClients 100\nAllow 0.0.0.0/0\nTINYEOF\n\necho \"Install complete\"\nexit 0"
+        }
+    },
+    "variables": [
+        {
+            "name": "Proxy Port",
+            "description": "Port HTTP proxy lắng nghe.\nDefault: 3128",
+            "env_variable": "PROXY_PORT",
+            "default_value": "3128",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|numeric|between:1024,65535",
+            "field_type": "text"
+        }
+    ],
+    "_featherpanel": {
+        "export_info": {
+            "exported_by": "mytai",
+            "exported_at": "2026-06-22 10:44:42",
+            "panel_version": "1.0.0",
+            "export_format_version": "1.0"
+        },
+        "spell_metadata": {
+            "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "realm_id": 1,
+            "realm_name": "gayyy",
+            "created_at": "2026-06-22 10:44:42",
+            "updated_at": "2026-06-22 10:44:42",
+            "script_is_privileged": true,
+            "force_outgoing_ip": false,
+            "config_from": null,
+            "copy_script_from": null,
+            "default_docker_image": "warp-proxy-cf:latest"
+        },
+        "variables_count": 1,
+        "features_count": 0,
+        "docker_images_count": 1
+    }
+}

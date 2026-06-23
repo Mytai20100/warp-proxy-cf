@@ -1,6 +1,26 @@
 #!/bin/bash
 set -e
 
+PROXY_PORT=${PROXY_PORT:-3128}
+
+echo "[entrypoint] setting up writable dirs for warp-svc..."
+mkdir -p /mnt/server/warp-data
+mkdir -p /mnt/server/warp-run
+
+# /var/lib/cloudflare-warp la read-only trong container panel
+# symlink sang /mnt/server de warp-svc co the ghi duoc
+if [ ! -L /var/lib/cloudflare-warp ]; then
+    rm -rf /var/lib/cloudflare-warp
+    ln -s /mnt/server/warp-data /var/lib/cloudflare-warp
+fi
+
+# /run cung co the bi read-only
+if [ -d /run/cloudflare-warp ] && [ ! -L /run/cloudflare-warp ]; then
+    rm -rf /run/cloudflare-warp
+fi
+mkdir -p /mnt/server/warp-run
+ln -sf /mnt/server/warp-run /run/cloudflare-warp 2>/dev/null || true
+
 echo "[entrypoint] starting warp-svc..."
 /usr/bin/warp-svc &
 sleep 5
@@ -18,7 +38,7 @@ warp() {
 echo "[entrypoint] registering WARP..."
 warp "registration new" || true
 
-echo "[entrypoint] setting tunnel mode (bypass proxy, route all traffic)..."
+echo "[entrypoint] setting tunnel mode..."
 warp "tunnel protocol set WireGuard" || true
 warp "mode warp"
 
@@ -44,5 +64,5 @@ if ! echo "$STATUS" | grep -q "Connected"; then
     exit 1
 fi
 
-echo "[entrypoint] starting tinyproxy..."
-exec /usr/bin/tinyproxy -d -c /etc/tinyproxy/tinyproxy.conf
+echo "[entrypoint] starting tinyproxy on port ${PROXY_PORT}..."
+exec /usr/bin/tinyproxy -d -c /mnt/server/tinyproxy.conf

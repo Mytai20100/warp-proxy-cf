@@ -19,6 +19,10 @@ RUN curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
     && apt-get update && apt-get install -y cloudflare-warp \
     && rm -rf /var/lib/apt/lists/*
 
+# Xoa /var/lib/cloudflare-warp khoi image
+# luc runtime entrypoint se symlink no sang /mnt/server/warp-data
+RUN rm -rf /var/lib/cloudflare-warp
+
 COPY tinyproxy.conf /etc/tinyproxy/tinyproxy.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

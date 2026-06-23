@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: mytai20100/warp-proxy
+  IMAGE_NAME: mytai20100/warp-proxy-cf
 
 jobs:
   build-and-push:

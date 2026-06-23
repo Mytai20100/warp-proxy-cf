@@ -18,5 +18,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 90s
-
-# Không dùng volume - tránh TOS file bị override

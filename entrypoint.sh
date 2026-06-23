@@ -3,23 +3,17 @@ set -e
 
 PROXY_PORT=${PROXY_PORT:-3128}
 
-echo "[entrypoint] setting up writable dirs for warp-svc..."
+echo "[entrypoint] setting up writable dirs..."
 mkdir -p /mnt/server/warp-data
 mkdir -p /mnt/server/warp-run
 
-# /var/lib/cloudflare-warp la read-only trong container panel
-# symlink sang /mnt/server de warp-svc co the ghi duoc
-if [ ! -L /var/lib/cloudflare-warp ]; then
-    rm -rf /var/lib/cloudflare-warp
-    ln -s /mnt/server/warp-data /var/lib/cloudflare-warp
-fi
+# /var/lib/cloudflare-warp da bi xoa trong Dockerfile
+# gio tao symlink sang /mnt/server truoc khi warp-svc start
+ln -sf /mnt/server/warp-data /var/lib/cloudflare-warp
 
-# /run cung co the bi read-only
-if [ -d /run/cloudflare-warp ] && [ ! -L /run/cloudflare-warp ]; then
-    rm -rf /run/cloudflare-warp
-fi
-mkdir -p /mnt/server/warp-run
-ln -sf /mnt/server/warp-run /run/cloudflare-warp 2>/dev/null || true
+# /run thuong la tmpfs nen co the ghi duoc, nhung tao san cho chac
+mkdir -p /run/cloudflare-warp 2>/dev/null || \
+    ln -sf /mnt/server/warp-run /run/cloudflare-warp
 
 echo "[entrypoint] starting warp-svc..."
 /usr/bin/warp-svc &
